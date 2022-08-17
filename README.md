@@ -257,9 +257,7 @@ Please refer to below official document to ingest data into ADX cluster
 
 ## 4. Query
 
-Here is a list of SSB queries, the query parameter may be different between different *scale factor*. The sample data is generated randomly.
-
-*Notice that the queries may be slightly different for different scale factor in the filtering constants. The queries below are tested with scale factor 10.*
+Here is a list of SSB queries rewritten in Kusto, which is used by Azure Data Explorer
 
 ##### Q1.1
 
