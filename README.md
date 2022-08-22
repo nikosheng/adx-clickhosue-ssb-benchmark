@@ -260,6 +260,21 @@ Please refer to below official document to ingest data into ADX cluster
 
 Partitioning Policy
 ```sql
+.alter table lineorder_flat policy partitioning ```
+{
+  "PartitionKeys": [
+    {
+      "ColumnName": "LO_ORDERDATE",
+      "Kind": "UniformRange",
+      "Properties": {
+        "Reference": "1992-01-01T00:00:00",
+        "RangeSize": "30.00:00:00",
+        "OverrideCreationTime": false
+      }
+    }
+  ]
+}```
+
 .alter table lineorder_daily_partition policy partitioning ```
 {
   "PartitionKeys": [
@@ -278,6 +293,8 @@ Partitioning Policy
 
 Roworder Policy
 ```sql
+.alter table lineorder_flat policy roworder (LO_ORDERDATE asc, LO_ORDERKEY asc);
+
 .alter table lineorder_daily_partition policy roworder (LO_ORDERDATE asc, LO_ORDERKEY asc);
 ```
 
