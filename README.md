@@ -255,7 +255,33 @@ Please refer to below official document to ingest data into ADX cluster
 1. [Install Light Ingest](https://docs.microsoft.com/en-us/azure/data-explorer/lightingest)
 2. [Use wizard for one-time ingestion of historical data with LightIngest](https://docs.microsoft.com/en-us/azure/data-explorer/generate-lightingest-command)
 
-## 4. Query
+
+## 4. Create table schema and partitioning/roworder policy 
+
+Partitioning Policy
+```sql
+.alter table lineorder_daily_partition policy partitioning ```
+{
+  "PartitionKeys": [
+    {
+      "ColumnName": "LO_ORDERDATE",
+      "Kind": "UniformRange",
+      "Properties": {
+        "Reference": "1992-01-01T00:00:00",
+        "RangeSize": "1.00:00:00",
+        "OverrideCreationTime": false
+      }
+    }
+  ]
+}```
+```
+
+Roworder Policy
+```sql
+.alter table lineorder_daily_partition policy roworder (LO_ORDERDATE asc, LO_ORDERKEY asc);
+```
+
+## 5. Query
 
 Here is a list of SSB queries rewritten in Kusto, which is used by Azure Data Explorer
 
@@ -596,3 +622,44 @@ ADX Cluster info:
 
 Clickhouse Cluster info:
 - 3 nodes; Standard E8ds v5, 8 cores, 64 GB memory for each node
+
+---
+**Flat Table Result**
+
+|      | clickhouse (sec) | Azure Data Explorer (sec) |
+|------|------------------|---------------------------|
+| Q1.1 | 1.225            | 0.375                     |
+| Q1.2 | 0.29             | 0.034                     |
+| Q1.3 | 0.026            | 0.25                      |
+| Q2.1 | 10.413           | 0.359                     |
+| Q2.2 | 0.467            | 0.421                     |
+| Q2.3 | 0.36             | 0.156                     |
+| Q3.1 | 2.715            | 0.437                     |
+| Q3.2 | 2.591            | 0.359                     |
+| Q3.3 | 0.553            | 0.187                     |
+| Q3.4 | 0.027            | 0.171                     |
+| Q4.1 | 5.716            | 0.749                     |
+| Q4.2 | 1.533            | 0.671                     |
+| Q4.3 | 0.213            | 0.437                     |
+
+![SSB-Flat-Table-Result](pics/ssb-flat-table.png)
+
+**Multi Table Join Result**
+
+|      | clickhouse (sec) | Azure Data Explorer (sec) |
+|------|------------------|---------------------------|
+| Q1.1 | 1.359            | 0.421                     |
+| Q1.2 | 0.293            | 0.031                     |
+| Q1.3 | 0.086            | 0.124                     |
+| Q2.1 | 145.02           | 2.968                     |
+| Q2.2 | 97.646           | 2.593                     |
+| Q2.3 | 93.342           | 2.437                     |
+| Q3.1 | 116.721          | 4.046                     |
+| Q3.2 | 106.978          | 2.828                     |
+| Q3.3 | 74.237           | 2.374                     |
+| Q3.4 | 21.275           | 1.187                     |
+| Q4.1 | 121.6            | 5.156                     |
+| Q4.2 | 23.853           | 2.687                     |
+| Q4.3 | 30.396           | 2.234                     |
+
+![SSB-Multi-Table-Join-Result](pics/ssb-multi-table-join.png)
