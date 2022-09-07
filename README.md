@@ -1,4 +1,7 @@
-# Star Schema Benchmark on Azure Data Explorer versus Clickhouse
+# Azure Data Explorer Star Schema Benchmark versus Clickhouse
+
+In this article I will start a Start Schema Benchmark, also known as SSB, on Azure Data Explorer and Clickhouse respectively
+to measure and compare the performance.
 
 ## What is Star Schema Benchmark(SSB)
 Star Schema Benchmark, aks SSB, is designed to measure performance of database products in support of data warehousing
@@ -17,8 +20,23 @@ databases with a concise schema and queries.
 If you are interested in the details of Star Schema Benchmark, please visit the [Paper](https://www.cs.umb.edu/~poneil/StarSchemaB.pdf)
 for more details.
 
-## 2. Generate Data
+## Why Azure Data Explorer
+Azure Data Explorer is a fast, fully managed data analytics service for real-time analysis on large volumes of data streaming
+from applications, websites, IoT devices, and more. In modern analytical scenarios, we need to have a fast and accurate insight
+from terabytes of data, in addition, from data lakehouse perspective, storage and compute should be decoupled and scaled
+respectively to achieve cost-effectiveness. Azure Data Explorer acts an important role in Azure Analytics Stack to support
+users to achieve cost-effective queries and storage by leveraging fully managed PaaS data service, without maintenance overhead.
 
+## Preparation
+
+### Environment
+**ADX Cluster:**
+- 3 nodes; Standard_E8d_v5, 8 cores, 64 GB memory for each node
+
+**Clickhouse Cluster:**
+- 3 nodes; Standard E8ds v5, 8 cores, 64 GB memory for each node
+
+### Generate Data
 1. Compile SSB-Benchmark
 
    ```shell
@@ -33,7 +51,7 @@ for more details.
    ```shell
    ./dbgen -s 100 -T a
    ```
-   
+
 3. Create table schema in Clickhouse
 
     ```shell
@@ -198,7 +216,7 @@ for more details.
     ;
     ```
 
-6. Unload data into csv files 
+6. Unload data into csv files
 
    ```shell
    clickhouse-client --query "SELECT * from ssb.lineorder_flat" --format CSV > lineorder_flat.csv
@@ -232,7 +250,7 @@ for more details.
 
 8. Split the fact tables (lineorder/lineorder_flat) data file into multiple segments less than 4GB, which is the limit file size for Azure Data Explorer Lightingest
 
-    For scale factor 100, the total line number of lineorder is 600,038,145, we will evenly distribute into multiple files.
+   For scale factor 100, the total line number of lineorder is 600,038,145, we will evenly distribute into multiple files.
 
     ``` shell
     split -d -l 35000000 lineorder.csv lineorder_part_
@@ -256,7 +274,31 @@ Please refer to below official document to ingest data into ADX cluster
 2. [Use wizard for one-time ingestion of historical data with LightIngest](https://docs.microsoft.com/en-us/azure/data-explorer/generate-lightingest-command)
 
 
-## 4. Create table schema and partitioning/roworder policy 
+## 4. Create table schema and partitioning/roworder policy
+Table `customer`
+```sql
+.create table customer (C_CUSTKEY: long, C_NAME: string, C_ADDRESS: string, C_CITY: string, C_NATION: string, C_REGION: string, C_PHONE: string, C_MKTSEGMENT: string)
+```
+Table `dates`
+```sql
+.create table dates (D_DATEKEY: datetime, D_DATE: string, D_DAYOFWEEK: string, D_MONTH: string, D_YEAR: int, D_YEARMONTHNUM: long, D_YEARMONTH: string, D_DAYNUMINWEEK: int, D_DAYNUMINMONTH: int, D_DAYNUMINYEAR: int, D_MONTHNUMINYEAR: int, D_WEEKNUMINYEAR: int, D_SELLINGSEASON: string, D_LASTDAYINWEEKFL: int, D_LASTDAYINMONTHFL: int, D_HOLIDAYFL: int, D_WEEKDAYFL: int)
+```
+Table `part`
+```sql
+.create table dates (D_DATEKEY: datetime, D_DATE: string, D_DAYOFWEEK: string, D_MONTH: string, D_YEAR: int, D_YEARMONTHNUM: long, D_YEARMONTH: string, D_DAYNUMINWEEK: int, D_DAYNUMINMONTH: int, D_DAYNUMINYEAR: int, D_MONTHNUMINYEAR: int, D_WEEKNUMINYEAR: int, D_SELLINGSEASON: string, D_LASTDAYINWEEKFL: int, D_LASTDAYINMONTHFL: int, D_HOLIDAYFL: int, D_WEEKDAYFL: int)
+```
+Table `supplier`
+```sql
+.create table supplier (S_SUPPKEY: long, S_NAME: string, S_ADDRESS: string, S_CITY: string, S_NATION: string, S_REGION: string, S_PHONE: string) 
+```
+Table `lineorder_daily_partition`
+```sql
+.create table lineorder_daily_partition (LO_ORDERKEY: long, LO_LINENUMBER: int, LO_CUSTKEY: long, LO_PARTKEY: long, LO_SUPPKEY: long, LO_ORDERDATE: datetime, LO_ORDERPRIORITY: string, LO_SHIPPRIORITY: int, LO_QUANTITY: int, LO_EXTENDEDPRICE: long, LO_ORDTOTALPRICE: long, LO_DISCOUNT: int, LO_REVENUE: long, LO_SUPPLYCOST: long, LO_TAX: int, LO_COMMITDATE: datetime, LO_SHIPMODE: string) with (docstring = "Created based on lineorder")
+```
+Table `lineorder_flat`
+```sql
+.create table lineorder_flat (LO_ORDERKEY: long, LO_LINENUMBER: int, LO_CUSTKEY: long, LO_PARTKEY: long, LO_SUPPKEY: long, LO_ORDERDATE: datetime, LO_ORDERPRIORITY: string, LO_SHIPPRIORITY: int, LO_QUANTITY: int, LO_EXTENDEDPRICE: long, LO_ORDTOTALPRICE: long, LO_DISCOUNT: int, LO_REVENUE: long, LO_SUPPLYCOST: long, LO_TAX: int, LO_COMMITDATE: datetime, LO_SHIPMODE: string, C_NAME: string, C_ADDRESS: string, C_CITY: string, C_NATION: string, C_REGION: string, C_PHONE: string, C_MKTSEGMENT: string, S_NAME: string, S_ADDRESS: string, S_CITY: string, S_NATION: string, S_REGION: string, S_PHONE: string, P_NAME: string, P_MFGR: string, P_CATEGORY: string, P_BRAND: string, P_COLOR: string, P_TYPE: string, P_SIZE: int, P_CONTAINER: string) 
+```
 
 Partitioning Policy
 ```sql
@@ -298,8 +340,442 @@ Roworder Policy
 .alter table lineorder_daily_partition policy roworder (LO_ORDERDATE asc, LO_ORDERKEY asc);
 ```
 
-## 5. Query
+## Run Queries
 
+### Clickhouse
+Before running SSB queries in Clickhouse, it will be better to reset the cache to reduce the performance impact by system cache
+
+Reset the OS [PageCache](https://www.tecmint.com/clear-ram-memory-cache-buffer-and-swap-space-on-linux/)
+
+```
+sync; echo 1 > /proc/sys/vm/drop_caches
+```
+
+Reset mark-cache in Clickhouse using [DROP MARK CACHE](https://clickhouse.tech/docs/en/sql_reference/statements/system/#query_language-system-drop-mark-cache)
+```
+SYSTEM DROP MARK CACHE
+```
+
+If you encounters the error below
+> Double-distributed IN/JOIN subqueries is denied (distributed_product_mode = 'deny'). You may rewrite query to use local tables in subqueries, or use GLOBAL keyword, or set distributed_product_mode to suitable value.
+
+Set `distributed product mode` to `global` to enable multi-join benchmark in Clickhouse
+```
+SET distributed_product_mode = 'global';
+```
+
+##### Q1.1
+
+Flat table
+```sql
+SELECT sum(LO_EXTENDEDPRICE * LO_DISCOUNT) AS revenue
+FROM dist_lineorder_flat
+WHERE toYear(LO_ORDERDATE) = 1993
+  AND LO_DISCOUNT BETWEEN 1 AND 3
+  AND LO_QUANTITY < 25;
+```
+
+Multi table join
+
+```sql
+SELECT sum(LO_EXTENDEDPRICE*LO_DISCOUNT) AS revenue
+FROM dist_lineorder
+LEFT JOIN dist_dates ON LO_ORDERDATE = D_DATEKEY
+WHERE toYear(LO_ORDERDATE) = 1993
+  AND LO_DISCOUNT BETWEEN 1 AND 3
+  AND LO_QUANTITY < 25;
+```
+
+##### Q1.2
+
+Flat table
+```sql
+SELECT SUM(LO_EXTENDEDPRICE * LO_DISCOUNT) AS revenue
+FROM dist_lineorder_flat
+WHERE toYYYYMM(LO_ORDERDATE) = 199401 AND LO_DISCOUNT BETWEEN 4 AND 6 AND LO_QUANTITY BETWEEN 26 AND 35;
+```
+
+Multi table join
+
+```sql
+SELECT SUM(LO_EXTENDEDPRICE*LO_DISCOUNT) AS revenue
+FROM dist_lineorder
+LEFT JOIN dist_dates ON LO_ORDERDATE = D_DATEKEY
+WHERE toYYYYMM(LO_ORDERDATE) = 199401
+  AND LO_DISCOUNT between 4 AND 6
+  AND LO_QUANTITY between 26 AND 35;
+```
+
+##### Q1.3
+
+Flat table
+```sql
+SELECT SUM(LO_EXTENDEDPRICE * LO_DISCOUNT) AS revenue
+FROM dist_lineorder_flat
+WHERE toISOWeek(LO_ORDERDATE) = 6 AND toYear(LO_ORDERDATE) = 1994
+  AND LO_DISCOUNT BETWEEN 5 AND 7 AND LO_QUANTITY BETWEEN 26 AND 35;
+```
+
+Multi table join
+
+```sql
+SELECT SUM(LO_EXTENDEDPRICE*LO_DISCOUNT) AS revenue
+FROM dist_lineorder
+LEFT JOIN dist_dates ON LO_ORDERDATE = D_DATEKEY
+WHERE toISOWeek(LO_ORDERDATE) = 6 AND toYear(LO_ORDERDATE) = 1994
+  AND LO_DISCOUNT BETWEEN 5 AND 7 AND LO_QUANTITY BETWEEN 26 AND 35;
+```
+
+##### Q2.1
+
+Flat table
+```sql
+SELECT
+    SUM(LO_REVENUE),
+    toYear(LO_ORDERDATE) AS year,
+    P_BRAND
+FROM dist_lineorder_flat
+WHERE P_CATEGORY = 'MFGR#12' AND S_REGION = 'AMERICA'
+GROUP BY
+    year,
+    P_BRAND
+ORDER BY
+    year,
+    P_BRAND;
+```
+
+Multi table join
+
+```sql
+SELECT SUM(LO_REVENUE) AS lo_revenue, D_YEAR, P_BRAND
+FROM dist_lineorder
+LEFT JOIN dist_dates ON LO_ORDERDATE= D_DATEKEY
+LEFT JOIN dist_part ON LO_PARTKEY = P_PARTKEY
+LEFT JOIN dist_supplier ON LO_SUPPKEY = S_SUPPKEY
+WHERE P_CATEGORY = 'MFGR#12' AND S_REGION = 'AMERICA'
+GROUP BY D_YEAR, P_BRAND
+ORDER BY D_YEAR, P_BRAND;
+```
+
+##### Q2.2
+
+Flat table
+```sql
+SELECT
+    SUM(LO_REVENUE),
+    toYear(LO_ORDERDATE) AS year,
+    P_BRAND
+FROM dist_lineorder_flat
+WHERE P_BRAND >= 'MFGR#2221' AND P_BRAND <= 'MFGR#2228' AND S_REGION = 'ASIA'
+GROUP BY
+    year,
+    P_BRAND
+ORDER BY
+    year,
+    P_BRAND;
+```
+
+Multi table join
+
+```sql
+SELECT SUM(LO_REVENUE) AS lo_revenue, D_YEAR, P_BRAND
+FROM dist_lineorder
+LEFT JOIN dist_dates ON LO_ORDERDATE= D_DATEKEY
+LEFT JOIN dist_part ON LO_PARTKEY = P_PARTKEY
+LEFT JOIN dist_supplier ON LO_SUPPKEY = S_SUPPKEY
+WHERE P_BRAND >= 'MFGR#2221' AND P_BRAND <= 'MFGR#2228' AND S_REGION = 'ASIA'
+GROUP BY D_YEAR, P_BRAND
+ORDER BY D_YEAR, P_BRAND;
+```
+
+##### Q2.3
+
+Flat table
+```sql
+SELECT
+    SUM(LO_REVENUE),
+    toYear(LO_ORDERDATE) AS year,
+    P_BRAND
+FROM dist_lineorder_flat
+WHERE P_BRAND = 'MFGR#2239' AND S_REGION = 'EUROPE'
+GROUP BY
+    year,
+    P_BRAND
+ORDER BY
+    year,
+    P_BRAND;
+```
+
+Multi table join
+
+```sql
+SELECT SUM(LO_REVENUE) AS lo_revenue, D_YEAR, P_BRAND
+FROM dist_lineorder
+LEFT JOIN dist_dates ON LO_ORDERDATE= D_DATEKEY
+LEFT JOIN dist_part ON LO_PARTKEY = P_PARTKEY
+LEFT JOIN dist_supplier ON LO_SUPPKEY = S_SUPPKEY
+WHERE P_BRAND = 'MFGR#2239' AND S_REGION = 'EUROPE'
+GROUP BY D_YEAR, P_BRAND
+ORDER BY D_YEAR, P_BRAND;
+```
+
+##### Q3.1
+
+Flat table
+```sql
+SELECT
+    C_NATION,
+    S_NATION,
+    toYear(LO_ORDERDATE) AS year,
+    SUM(LO_REVENUE) AS revenue
+FROM dist_lineorder_flat
+WHERE C_REGION = 'ASIA' AND S_REGION = 'ASIA' AND year >= 1992 AND year <= 1997
+GROUP BY
+    C_NATION,
+    S_NATION,
+    year
+ORDER BY
+    year ASC,
+    revenue DESC;
+```
+
+Multi table join
+
+```sql
+SELECT SUM(LO_REVENUE) AS lo_revenue, toYear(LO_ORDERDATE) AS year, C_NATION, S_NATION
+FROM dist_lineorder
+LEFT JOIN dist_dates ON LO_ORDERDATE= D_DATEKEY
+LEFT JOIN dist_customer ON LO_PARTKEY = C_CUSTKEY
+LEFT JOIN dist_supplier ON LO_SUPPKEY = S_SUPPKEY
+WHERE C_REGION = 'ASIA' AND S_REGION = 'ASIA' AND year >= 1992 AND year <= 1997
+GROUP BY C_NATION, S_NATION, year
+ORDER BY year ASc, lo_revenue DESC;
+```
+
+##### Q3.2
+
+Flat table
+```sql
+SELECT
+    C_CITY,
+    S_CITY,
+    toYear(LO_ORDERDATE) AS year,
+    SUM(LO_REVENUE) AS revenue
+FROM dist_lineorder_flat
+WHERE C_NATION = 'UNITED STATES' AND S_NATION = 'UNITED STATES' AND year >= 1992 AND year <= 1997
+GROUP BY
+    C_CITY,
+    S_CITY,
+    year
+ORDER BY
+    year ASC,
+    revenue DESC;
+```
+
+Multi table join
+
+```sql
+SELECT SUM(LO_REVENUE) AS lo_revenue, toYear(LO_ORDERDATE) AS year, C_CITY, S_CITY
+FROM dist_lineorder
+LEFT JOIN dist_dates ON LO_ORDERDATE= D_DATEKEY
+LEFT JOIN dist_customer ON LO_PARTKEY = C_CUSTKEY
+LEFT JOIN dist_supplier ON LO_SUPPKEY = S_SUPPKEY
+WHERE C_NATION = 'UNITED STATES' AND S_NATION = 'UNITED STATES' AND year >= 1992 AND year <= 1997
+GROUP BY C_CITY, S_CITY, year
+ORDER BY year ASc, lo_revenue DESC;
+```
+
+##### Q3.3
+
+Flat table
+```sql
+SELECT
+    C_CITY,
+    S_CITY,
+    toYear(LO_ORDERDATE) AS year,
+    SUM(LO_REVENUE) AS revenue
+FROM dist_lineorder_flat
+WHERE (C_CITY = 'UNITED KI1' OR C_CITY = 'UNITED KI5') AND (S_CITY = 'UNITED KI1' OR S_CITY = 'UNITED KI5') AND year >= 1992 AND year <= 1997
+GROUP BY
+    C_CITY,
+    S_CITY,
+    year
+ORDER BY
+    year ASC,
+    revenue DESC;
+
+```
+
+Multi table join
+
+```sql
+SELECT SUM(LO_REVENUE) AS lo_revenue, toYear(LO_ORDERDATE) AS year, C_CITY, S_CITY
+FROM dist_lineorder
+LEFT JOIN dist_dates ON LO_ORDERDATE= D_DATEKEY
+LEFT JOIN dist_customer ON LO_PARTKEY = C_CUSTKEY
+LEFT JOIN dist_supplier ON LO_SUPPKEY = S_SUPPKEY
+WHERE (C_CITY ='UNITED KI1' or C_CITY ='UNITED KI5')
+  AND (S_CITY='UNITED KI1' or S_CITY='UNITED KI5')
+  AND year >= 1992 AND year <= 1997
+GROUP BY C_CITY, S_CITY, year
+ORDER BY year ASc, lo_revenue DESC;
+```
+
+##### Q3.4
+
+Flat table
+```sql
+SELECT
+    C_CITY,
+    S_CITY,
+    toYear(LO_ORDERDATE) AS year,
+    SUM(LO_REVENUE) AS revenue
+FROM dist_lineorder_flat
+WHERE (C_CITY = 'UNITED KI1' OR C_CITY = 'UNITED KI5') AND (S_CITY = 'UNITED KI1' OR S_CITY = 'UNITED KI5') AND toYYYYMM(LO_ORDERDATE) = 199712
+GROUP BY
+    C_CITY,
+    S_CITY,
+    year
+ORDER BY
+    year ASC,
+    revenue DESC;
+```
+
+Multi table join
+
+```sql
+SELECT SUM(LO_REVENUE) AS lo_revenue, toYear(LO_ORDERDATE) AS year, C_CITY, S_CITY
+FROM dist_lineorder
+LEFT JOIN dist_dates ON LO_ORDERDATE= D_DATEKEY
+LEFT JOIN dist_customer ON LO_PARTKEY = C_CUSTKEY
+LEFT JOIN dist_supplier ON LO_SUPPKEY = S_SUPPKEY
+WHERE (C_CITY ='UNITED KI1' or C_CITY ='UNITED KI5')
+  AND (S_CITY='UNITED KI1' or S_CITY='UNITED KI5')
+  AND D_YEARMONTH == 'Dec1997'
+GROUP BY C_CITY, S_CITY, year
+ORDER BY year ASc, lo_revenue DESC;
+```
+
+##### Q4.1
+
+Flat table
+```sql
+SELECT
+    toYear(LO_ORDERDATE) AS year,
+    C_NATION,
+    SUM(LO_REVENUE - LO_SUPPLYCOST) AS profit
+FROM lineorder_flat
+WHERE C_REGION = 'AMERICA' AND S_REGION = 'AMERICA' AND (P_MFGR = 'MFGR#1' OR P_MFGR = 'MFGR#2')
+GROUP BY
+    year,
+    C_NATION
+ORDER BY
+    year ASC,
+    C_NATION ASC;
+```
+
+Multi table join
+
+```sql
+SELECT (SUM(LO_REVENUE ) - SUM(LO_SUPPLYCOST)) AS profit, toYear(LO_ORDERDATE) AS year, C_NATION
+FROM dist_lineorder
+LEFT JOIN dist_dates ON LO_ORDERDATE= D_DATEKEY
+LEFT JOIN dist_customer ON LO_PARTKEY = C_CUSTKEY
+LEFT JOIN dist_supplier ON LO_SUPPKEY = S_SUPPKEY
+LEFT JOIN dist_part ON LO_PARTKEY = P_PARTKEY
+WHERE C_REGION = 'AMERICA' AND S_REGION= 'AMERICA'
+  AND (P_MFGR = 'MFGR#1' or P_MFGR = 'MFGR#2')
+GROUP BY year, C_NATION
+ORDER BY year ASc, C_NATION ASC;
+```
+
+##### Q4.2
+
+Flat table
+```sql
+SELECT
+    toYear(LO_ORDERDATE) AS year,
+    S_NATION,
+    P_CATEGORY,
+    SUM(LO_REVENUE - LO_SUPPLYCOST) AS profit
+FROM dist_lineorder_flat
+WHERE C_REGION = 'AMERICA' AND S_REGION = 'AMERICA' AND (year = 1997 OR year = 1998) AND (P_MFGR = 'MFGR#1' OR P_MFGR = 'MFGR#2')
+GROUP BY
+    year,
+    S_NATION,
+    P_CATEGORY
+ORDER BY
+    year ASC,
+    S_NATION ASC,
+    P_CATEGORY ASC;
+```
+
+Multi table join
+
+```sql
+SELECT (SUM(LO_REVENUE ) - SUM(LO_SUPPLYCOST)) AS profit, toYear(LO_ORDERDATE) AS year, S_NATION, P_CATEGORY
+FROM dist_lineorder
+    LEFT JOIN dist_dates ON LO_ORDERDATE= D_DATEKEY
+    LEFT JOIN dist_customer ON LO_PARTKEY = C_CUSTKEY
+    LEFT JOIN dist_supplier ON LO_SUPPKEY = S_SUPPKEY
+    LEFT JOIN dist_part ON LO_PARTKEY = P_PARTKEY
+WHERE C_REGION = 'AMERICA' AND S_REGION = 'AMERICA' AND (year = 1997 OR year = 1998) AND (P_MFGR = 'MFGR#1' OR P_MFGR = 'MFGR#2')
+GROUP BY
+    year,
+    S_NATION,
+    P_CATEGORY
+ORDER BY
+    year ASC,
+    S_NATION ASC,
+    P_CATEGORY ASC;
+```
+
+##### Q4.3
+
+Flat table
+```sql
+SELECT
+    toYear(LO_ORDERDATE) AS year,
+    S_CITY,
+    P_BRAND,
+    SUM(LO_REVENUE - LO_SUPPLYCOST) AS profit
+FROM dist_lineorder_flat
+WHERE S_NATION = 'UNITED STATES' AND (year = 1997 OR year = 1998) AND P_CATEGORY = 'MFGR#14'
+GROUP BY
+    year,
+    S_CITY,
+    P_BRAND
+ORDER BY
+    year ASC,
+    S_CITY ASC,
+    P_BRAND ASC;
+```
+
+Multi table join
+
+```sql
+SELECT
+    toYear(LO_ORDERDATE) AS year,
+    S_CITY,
+    P_BRAND,
+    (SUM(LO_REVENUE ) - SUM(LO_SUPPLYCOST)) AS profit
+FROM dist_lineorder
+    LEFT JOIN dist_dates ON LO_ORDERDATE= D_DATEKEY
+    LEFT JOIN dist_customer ON LO_PARTKEY = C_CUSTKEY
+    LEFT JOIN dist_supplier ON LO_SUPPKEY = S_SUPPKEY
+    LEFT JOIN dist_part ON LO_PARTKEY = P_PARTKEY
+WHERE S_NATION = 'UNITED STATES' AND (year = 1997 OR year = 1998) AND P_CATEGORY = 'MFGR#14'
+GROUP BY
+    year,
+    S_CITY,
+    P_BRAND
+ORDER BY
+    year ASC,
+    S_CITY ASC,
+    P_BRAND ASC;
+```
+
+### Azure Data Explorer
 Here is a list of SSB queries rewritten in Kusto, which is used by Azure Data Explorer
 
 ##### Q1.1
@@ -631,52 +1107,3 @@ lineorder_daily_partition
 | order by D_YEAR, S_CITY, P_BRAND
 | project D_YEAR, S_CITY, P_BRAND, profit
 ```
-
-## 5. Result
-
-ADX Cluster info:
-- 3 nodes; Standard_E8d_v5, 8 cores, 64 GB memory for each node
-
-Clickhouse Cluster info:
-- 3 nodes; Standard E8ds v5, 8 cores, 64 GB memory for each node
-
----
-**Flat Table Result**
-
-|      | clickhouse (sec) | Azure Data Explorer (sec) |
-|------|------------------|---------------------------|
-| Q1.1 | 1.225            | 0.375                     |
-| Q1.2 | 0.29             | 0.034                     |
-| Q1.3 | 0.026            | 0.25                      |
-| Q2.1 | 10.413           | 0.359                     |
-| Q2.2 | 0.467            | 0.421                     |
-| Q2.3 | 0.36             | 0.156                     |
-| Q3.1 | 2.715            | 0.437                     |
-| Q3.2 | 2.591            | 0.359                     |
-| Q3.3 | 0.553            | 0.187                     |
-| Q3.4 | 0.027            | 0.171                     |
-| Q4.1 | 5.716            | 0.749                     |
-| Q4.2 | 1.533            | 0.671                     |
-| Q4.3 | 0.213            | 0.437                     |
-
-![SSB-Flat-Table-Result](pics/ssb-flat-table.png)
-
-**Multi Table Join Result**
-
-|      | clickhouse (sec) | Azure Data Explorer (sec) |
-|------|------------------|---------------------------|
-| Q1.1 | 1.359            | 0.421                     |
-| Q1.2 | 0.293            | 0.031                     |
-| Q1.3 | 0.086            | 0.124                     |
-| Q2.1 | 145.02           | 2.968                     |
-| Q2.2 | 97.646           | 2.593                     |
-| Q2.3 | 93.342           | 2.437                     |
-| Q3.1 | 116.721          | 4.046                     |
-| Q3.2 | 106.978          | 2.828                     |
-| Q3.3 | 74.237           | 2.374                     |
-| Q3.4 | 21.275           | 1.187                     |
-| Q4.1 | 121.6            | 5.156                     |
-| Q4.2 | 23.853           | 2.687                     |
-| Q4.3 | 30.396           | 2.234                     |
-
-![SSB-Multi-Table-Join-Result](pics/ssb-multi-table-join.png)
