@@ -32,6 +32,7 @@ users to achieve cost-effective queries and storage by leveraging fully managed 
 ### Environment
 **ADX Cluster:**
 - 3 nodes; Standard_E8d_v5, 8 cores, 64 GB memory for each node
+- 3 nodes; Standard_E4d_v5, 4 cores, 32 GB memory for each node
 
 **Clickhouse Cluster:**
 - 3 nodes; Standard E8ds v5, 8 cores, 64 GB memory for each node
@@ -1107,3 +1108,47 @@ lineorder_daily_partition
 | order by D_YEAR, S_CITY, P_BRAND
 | project D_YEAR, S_CITY, P_BRAND, profit
 ```
+
+## Result
+
+**Flat Table Result**
+
+|      | Clickhouse (sec) | Azure Data Explorer E8*3 (sec) | Azure Data Explorer E4*3 (sec) |
+|------|------------------|--------------------------------|--------------------------------|
+| Q1.1 | 1.225            | 0.375                          | 0.328                          |
+| Q1.2 | 0.29             | 0.034                          | 0.031                          |
+| Q1.3 | 0.026            | 0.25                           | 0.406                          |
+| Q2.1 | 10.413           | 0.359                          | 1.884                          |
+| Q2.2 | 0.467            | 0.421                          | 0.796                          |
+| Q2.3 | 0.36             | 0.156                          | 0.39                           |
+| Q3.1 | 2.715            | 0.437                          | 0.812                          |
+| Q3.2 | 2.591            | 0.359                          | 0.89                           |
+| Q3.3 | 0.553            | 0.187                          | 0.468                          |
+| Q3.4 | 0.027            | 0.171                          | 0.734                          |
+| Q4.1 | 5.716            | 0.749                          | 1.734                          |
+| Q4.2 | 1.533            | 0.671                          | 1.281                          |
+| Q4.3 | 0.213            | 0.437                          | 2.046                          |
+
+![SSB-Flat-Table-Result](pics/ssb-flat-table.png)
+
+**Multi Table Join Result**
+
+|      | Clickhouse (sec) | Azure Data Explorer E8*3 (sec) | Azure Data Explorer E4*3 (sec) |
+|------|------------------|--------------------------------|--------------------------------|
+| Q1.1 | 1.359            | 0.421                          | 0.578                          |
+| Q1.2 | 0.293            | 0.031                          | 0.062                          |
+| Q1.3 | 0.086            | 0.124                          | 0.281                          |
+| Q2.1 | 145.02           | 2.968                          | 9.953                          |
+| Q2.2 | 97.646           | 2.593                          | 11.472                         |
+| Q2.3 | 93.342           | 2.437                          | 6.796                          |
+| Q3.1 | 116.721          | 4.046                          | 12.203                         |
+| Q3.2 | 106.978          | 2.828                          | 8.039                          |
+| Q3.3 | 74.237           | 2.374                          | 7.671                          |
+| Q3.4 | 21.275           | 1.187                          | 3.156                          |
+| Q4.1 | 121.6            | 5.156                          | 19.595                         |
+| Q4.2 | 23.853           | 2.687                          | 6.235                          |
+| Q4.3 | 30.396           | 2.234                          | 5.953                          |
+
+![SSB-Multi-Table-Join-Result](pics/ssb-multi-table-join.png)
+
+## Summary
