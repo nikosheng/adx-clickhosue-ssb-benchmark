@@ -314,7 +314,7 @@ estimated_recovery_time: 0
 3 rows in set. Elapsed: 0.002 sec.
 ```
 
-## Initialize SSB Benchmark Dataset
+## Initialize SSB Benchmark
 
 Please refer to [SSB Benchmark](../README.md)
 
