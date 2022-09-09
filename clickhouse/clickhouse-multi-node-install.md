@@ -254,6 +254,11 @@ chown -R clickhouse:clickhouse /var/log/clickhouse-server
 sudo -u clickhouse clickhouse-server --config-file=/etc/clickhouse-server/config.xml
 ```
 
+- Login into clickhouse cluster
+```shell
+clickhouse-client --password 'password' -m
+```
+
 - Verify the cluster is running normally
 ```sql
 SELECT * FROM system.clusters WHERE cluster = 'benchmark' FORMAT Vertical;
@@ -325,3 +330,5 @@ az group delete \
 
 ## Reference
 [Clickhouse Cluster Deployment](https://clickhouse.com/docs/ru/getting-started/tutorial/#cluster-deployment)
+
+[How-to-set-up-a-clickhouse-cluster-with-zookeeper](https://altinity.com/blog/how-to-set-up-a-clickhouse-cluster-with-zookeeper)
