@@ -1152,3 +1152,12 @@ lineorder_daily_partition
 ![SSB-Multi-Table-Join-Result](pics/ssb-multi-table-join.png)
 
 ## Summary
+1. flat table
+Azure Data Explorer in E8 instance types outperforms Clickhouse in 10 out of 13 SSB cases
+
+2. multi join
+3. pricing
+4. maintenance managed vs zk+cluster
+5. partition strategy
+6. broadcasts join/ shuffle join
+7. compute-storage decouple - long term storage (logs)
