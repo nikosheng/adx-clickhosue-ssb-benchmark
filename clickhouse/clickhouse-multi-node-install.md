@@ -27,7 +27,7 @@ Create Zookeeper VM
 az vm create -n "zookeeper-vm" -g "azure-clickhouse-rg" \
     --image ubuntults \
     --admin-username sshuser \
-    --admin-password "Sheng@900912" \
+    --admin-password "xxx" \
     --authentication-type password \
     --vnet-name clickhouseVNet \
     --subnet default \
@@ -41,7 +41,7 @@ az vm create -n "clickhouse-vm" -g "azure-clickhouse-rg" \
     --image ubuntults \
     --count 3 \
     --admin-username sshuser \
-    --admin-password "Sheng@900912" \
+    --admin-password "xxx" \
     --authentication-type password \
     --vnet-name clickhouseVNet \
     --subnet default \
