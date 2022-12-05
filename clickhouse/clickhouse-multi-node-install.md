@@ -157,8 +157,10 @@ cd zookeeper && mkdir data
     #metricsProvider.httpPort=7000
     #metricsProvider.exportJvmInfo=true
     
-    # Zookeeper Cluster Communication, since it is a single node cluster and only the local VM will be set here
-    10.0.0.4:2888:3888
+    # Zookeeper Cluster Communication
+    10.0.0.5:2888:3888
+    10.0.0.6:2888:3888
+    10.0.0.7:2888:3888
     ```
 
 ### Clickhouse Cluster Configuration
@@ -224,6 +226,7 @@ Second, we need to change the zookeeper setting and input the zookeeper ip you p
 
 Third, I suggest that we could point to another data/tmp location to store the clickhouse data/tmp files instead of the existing one in system disk. Please make sure you create a new path in a data disk and change the `<path>` section in `config.xml`
 
+In addition, the latest version of clickhouse would save the data path in a separate file in `config.d` folder with file `data-paths.xml`, we need to change the specific data/tmp files location in this file instead of in `config.xml` 
 ```
 <!-- Path to data directory, with trailing slash. -->
     <path>/mnt/clickhouse/data/</path>
@@ -250,6 +253,9 @@ Starting zookeeper ... STARTED
 ```
 chown -R clickhouse:clickhouse /var/lib/clickhouse
 chown -R clickhouse:clickhouse /var/log/clickhouse-server
+
+# change the owner of the clickhouse metadata folder
+chown -R clickhouse:clickhouse /data/clickhouse
 
 sudo -u clickhouse clickhouse-server --config-file=/etc/clickhouse-server/config.xml
 ```
