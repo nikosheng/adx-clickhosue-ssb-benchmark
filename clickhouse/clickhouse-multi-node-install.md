@@ -254,8 +254,8 @@ Starting zookeeper ... STARTED
 chown -R clickhouse:clickhouse /var/lib/clickhouse
 chown -R clickhouse:clickhouse /var/log/clickhouse-server
 
-# change the owner of the clickhouse metadata folder
-chown -R clickhouse:clickhouse /data/clickhouse
+# change the owner of the clickhouse folder
+chown -R clickhouse:clickhouse /data
 
 sudo -u clickhouse clickhouse-server --config-file=/etc/clickhouse-server/config.xml
 ```
