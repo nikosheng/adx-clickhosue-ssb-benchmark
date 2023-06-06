@@ -167,8 +167,8 @@ users to achieve cost-effective queries and storage by leveraging fully managed 
     ```shell
     SET max_memory_usage = 17179869184;
        
-    CREATE TABLE ssb.lineorder_flat on cluster benchmark
-    ENGINE = ReplicatedMergeTree
+    CREATE TABLE ssb.lineorder_flat
+    ENGINE = MergeTree
     PARTITION BY toYear(LO_ORDERDATE)
     ORDER BY (LO_ORDERDATE, LO_ORDERKEY) AS
     SELECT
