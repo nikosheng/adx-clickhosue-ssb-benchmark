@@ -58,7 +58,7 @@ users to achieve cost-effective queries and storage by leveraging fully managed 
     ```shell
     CREATE DATABASE ssb;
    
-    CREATE TABLE ssb.customer
+    CREATE TABLE ssb.customer on Cluster benchmark
     (
     C_CUSTKEY       UInt32,
     C_NAME          String,
@@ -74,7 +74,7 @@ users to achieve cost-effective queries and storage by leveraging fully managed 
     ## Create Distributed Table in Clickhouse cluster
     CREATE TABLE ssb.dist_customer ON CLUSTER benchmark as ssb.customer engine = Distributed(benchmark, ssb, customer, rand());
     
-    CREATE TABLE ssb.lineorder
+    CREATE TABLE ssb.lineorder on Cluster benchmark
     (
     LO_ORDERKEY             UInt32,
     LO_LINENUMBER           UInt8,
@@ -98,7 +98,7 @@ users to achieve cost-effective queries and storage by leveraging fully managed 
     
     CREATE TABLE ssb.dist_lineorder ON CLUSTER benchmark as ssb.lineorder engine = Distributed(benchmark, ssb, lineorder, rand());
     
-    CREATE TABLE ssb.part
+    CREATE TABLE ssb.part on Cluster benchmark
     (
     P_PARTKEY       UInt32,
     P_NAME          String,
@@ -114,7 +114,7 @@ users to achieve cost-effective queries and storage by leveraging fully managed 
     
     CREATE TABLE ssb.dist_part ON CLUSTER benchmark as ssb.part engine = Distributed(benchmark, ssb, part, rand());
     
-    CREATE TABLE ssb.supplier
+    CREATE TABLE ssb.supplier on Cluster benchmark
     (
     S_SUPPKEY       UInt32,
     S_NAME          String,
@@ -167,7 +167,7 @@ users to achieve cost-effective queries and storage by leveraging fully managed 
     ```shell
     SET max_memory_usage = 17179869184;
        
-    CREATE TABLE ssb.lineorder_flat
+    CREATE TABLE ssb.lineorder_flat on Cluster benchmark
     ENGINE = MergeTree
     PARTITION BY toYear(LO_ORDERDATE)
     ORDER BY (LO_ORDERDATE, LO_ORDERKEY) AS
@@ -215,6 +215,8 @@ users to achieve cost-effective queries and storage by leveraging fully managed 
     INNER JOIN ssb.supplier AS s ON s.S_SUPPKEY = l.LO_SUPPKEY
     INNER JOIN ssb.part AS p ON p.P_PARTKEY = l.LO_PARTKEY
     ;
+    
+    CREATE TABLE ssb.dist_lineorder_flat ON CLUSTER benchmark as ssb.lineorder_flat engine = Distributed(benchmark, ssb, lineorder_flat, rand());
     ```
 
 6. Unload data into csv files
