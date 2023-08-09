@@ -47,10 +47,10 @@ users to achieve cost-effective queries and storage by leveraging fully managed 
    make
    ```
 
-2. Generate SSB data files
+2. Generate SSB data files and we target to create the flat table data file size of 1TB, and we set the scale as `446` to achieve it 
 
    ```shell
-   ./dbgen -s 100 -T a
+   nohup ./dbgen -s 446 -T a 2>1 &
    ```
 
 3. Create table schema in Clickhouse
