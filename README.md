@@ -313,22 +313,7 @@ Partitioning Policy
       "Kind": "UniformRange",
       "Properties": {
         "Reference": "1992-01-01T00:00:00",
-        "RangeSize": "30.00:00:00",
-        "OverrideCreationTime": false
-      }
-    }
-  ]
-}```
-
-.alter table lineorder_daily_partition policy partitioning ```
-{
-  "PartitionKeys": [
-    {
-      "ColumnName": "LO_ORDERDATE",
-      "Kind": "UniformRange",
-      "Properties": {
-        "Reference": "1992-01-01T00:00:00",
-        "RangeSize": "1.00:00:00",
+        "RangeSize": "365.00:00:00",
         "OverrideCreationTime": false
       }
     }
@@ -339,8 +324,6 @@ Partitioning Policy
 Roworder Policy
 ```sql
 .alter table lineorder_flat policy roworder (LO_ORDERDATE asc, LO_ORDERKEY asc);
-
-.alter table lineorder_daily_partition policy roworder (LO_ORDERDATE asc, LO_ORDERKEY asc);
 ```
 
 ## Run Queries
@@ -365,6 +348,52 @@ If you encounters the error below
 Set `distributed product mode` to `global` to enable multi-join benchmark in Clickhouse
 ```
 SET distributed_product_mode = 'global';
+```
+
+
+We could also leverate the `Clickbench` script to run the script in batch automatically. For more information pleases refer to [Clickbench Script](https://github.com/ClickHouse/ClickBench/tree/main/clickhouse)
+
+We need to modify the 2 scripts - `run.sh` and `queries.sql`
+
+*queries.sql*
+```
+SELECT sum(LO_EXTENDEDPRICE * LO_DISCOUNT) AS revenue FROM ssb.dist_lineorder_flat WHERE toYear(LO_ORDERDATE) = 1993  AND LO_DISCOUNT BETWEEN 1 AND 3  AND LO_QUANTITY < 25;
+SELECT SUM(LO_EXTENDEDPRICE * LO_DISCOUNT) AS revenue FROM ssb.dist_lineorder_flat WHERE toYYYYMM(LO_ORDERDATE) = 199401 AND LO_DISCOUNT BETWEEN 4 AND 6 AND LO_QUANTITY BETWEEN 26 AND 35;
+SELECT SUM(LO_EXTENDEDPRICE * LO_DISCOUNT) AS revenue FROM ssb.dist_lineorder_flat WHERE toISOWeek(LO_ORDERDATE) = 6 AND toYear(LO_ORDERDATE) = 1994  AND LO_DISCOUNT BETWEEN 5 AND 7 AND LO_QUANTITY BETWEEN 26 AND 35;
+SELECT SUM(LO_REVENUE), toYear(LO_ORDERDATE) AS year, P_BRAND FROM ssb.dist_lineorder_flat WHERE P_CATEGORY = 'MFGR#12' AND S_REGION = 'AMERICA' GROUP BY year, P_BRAND ORDER BY year, P_BRAND;
+SELECT SUM(LO_REVENUE), toYear(LO_ORDERDATE) AS year, P_BRAND FROM ssb.dist_lineorder_flat WHERE P_BRAND >= 'MFGR#2221' AND P_BRAND <= 'MFGR#2228' AND S_REGION = 'ASIA' GROUP BY year, P_BRAND ORDER BY year, P_BRAND;
+SELECT SUM(LO_REVENUE), toYear(LO_ORDERDATE) AS year, P_BRAND FROM ssb.dist_lineorder_flat WHERE P_BRAND = 'MFGR#2239' AND S_REGION = 'EUROPE'GROUP BY year, P_BRAND ORDER BY year, P_BRAND;
+SELECT C_NATION, S_NATION, toYear(LO_ORDERDATE) AS year, SUM(LO_REVENUE) AS revenue FROM ssb.dist_lineorder_flat WHERE C_REGION = 'ASIA' AND S_REGION = 'ASIA' AND year >= 1992 AND year <= 1997 GROUP BY C_NATION, S_NATION, year ORDER BY year ASC, revenue DESC;
+SELECT C_CITY, S_CITY, toYear(LO_ORDERDATE) AS year, SUM(LO_REVENUE) AS revenue FROM ssb.dist_lineorder_flat WHERE C_NATION = 'UNITED STATES' AND S_NATION = 'UNITED STATES' AND year >= 1992 AND year <= 1997 GROUP BY C_CITY, S_CITY, year ORDER BY year ASC, revenue DESC;
+SELECT C_CITY, S_CITY, toYear(LO_ORDERDATE) AS year, SUM(LO_REVENUE) AS revenue FROM ssb.dist_lineorder_flat WHERE (C_CITY = 'UNITED KI1' OR C_CITY = 'UNITED KI5') AND (S_CITY = 'UNITED KI1' OR S_CITY = 'UNITED KI5') AND year >= 1992 AND year <= 1997 GROUP BY C_CITY, S_CITY, year ORDER BY year ASC, revenue DESC;
+SELECT C_CITY, S_CITY, toYear(LO_ORDERDATE) AS year, SUM(LO_REVENUE) AS revenue FROM ssb.dist_lineorder_flat WHERE (C_CITY = 'UNITED KI1' OR C_CITY = 'UNITED KI5') AND (S_CITY = 'UNITED KI1' OR S_CITY = 'UNITED KI5') AND toYYYYMM(LO_ORDERDATE) = 199712 GROUP BY C_CITY, S_CITY, year ORDER BY year ASC, revenue DESC;
+SELECT toYear(LO_ORDERDATE) AS year, C_NATION, SUM(LO_REVENUE - LO_SUPPLYCOST) AS profit FROM ssb.dist_lineorder_flat WHERE C_REGION = 'AMERICA' AND S_REGION = 'AMERICA' AND (P_MFGR = 'MFGR#1' OR P_MFGR = 'MFGR#2') GROUP BY year, C_NATION ORDER BY year ASC, C_NATION ASC;
+SELECT toYear(LO_ORDERDATE) AS year, S_NATION, P_CATEGORY, SUM(LO_REVENUE - LO_SUPPLYCOST) AS profit FROM ssb.dist_lineorder_flat WHERE C_REGION = 'AMERICA' AND S_REGION = 'AMERICA' AND (year = 1997 OR year = 1998) AND (P_MFGR = 'MFGR#1' OR P_MFGR = 'MFGR#2') GROUP BY year, S_NATION, P_CATEGORY ORDER BY year ASC, S_NATION ASC, P_CATEGORY ASC;
+SELECT toYear(LO_ORDERDATE) AS year, S_CITY, P_BRAND, SUM(LO_REVENUE - LO_SUPPLYCOST) AS profit FROM ssb.dist_lineorder_flat WHERE S_NATION = 'UNITED STATES' AND (year = 1997 OR year = 1998) AND P_CATEGORY = 'MFGR#14' GROUP BY year, S_CITY, P_BRAND ORDER BY year ASC, S_CITY ASC, P_BRAND ASC;
+```
+
+*run.sh*
+```
+#!/bin/bash
+
+TRIES=3
+QUERY_NUM=1
+cat queries.sql | while read query; do
+    [ -z "$HOST" ] && sync
+    [ -z "$HOST" ] && echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null
+
+    echo -n "["
+    for i in $(seq 1 $TRIES); do
+        RES=$(clickhouse-client --password "mypassword" --time --format=Null --query="$query" --progress 0 2>&1 ||:)
+        [[ "$?" == "0" ]] && echo -n "${RES}" || echo -n "null"
+        [[ "$i" != $TRIES ]] && echo -n ", "
+
+        echo "${QUERY_NUM},${i},${RES}" >> result.csv
+    done
+    echo "],"
+
+    QUERY_NUM=$((QUERY_NUM + 1))
+done
 ```
 
 ##### Q1.1
