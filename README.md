@@ -350,7 +350,6 @@ Set `distributed product mode` to `global` to enable multi-join benchmark in Cli
 SET distributed_product_mode = 'global';
 ```
 
-
 We could also leverate the `Clickbench` script to run the script in batch automatically. For more information pleases refer to [Clickbench Script](https://github.com/ClickHouse/ClickBench/tree/main/clickhouse)
 
 We need to modify the 2 scripts - `run.sh` and `queries.sql`
