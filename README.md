@@ -395,6 +395,25 @@ cat queries.sql | while read query; do
 done
 ```
 
+Once we have modified the files, we could simply run the `run.sh` to execute the queries, each query will run 3 times consecutively
+```
+$ ./run.sh
+
+[0.764, 0.266, 0.257],
+[0.060, 0.053, 0.063],
+[0.030, 0.031, 0.033],
+[7.804, 1.936, 1.937],
+[6.677, 1.805, 1.744],
+[6.711, 1.659, 1.654],
+[6.487, 2.391, 2.352],
+[7.312, 1.962, 1.952],
+[5.610, 1.428, 1.458],
+[0.041, 0.035, 0.033],
+[9.967, 3.247, 3.235],
+[2.478, 0.894, 0.920],
+[2.773, 0.763, 0.752],
+```
+
 ##### Q1.1
 
 Flat table
