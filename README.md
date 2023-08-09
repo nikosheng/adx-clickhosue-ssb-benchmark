@@ -4,7 +4,7 @@ In this article I will start a Start Schema Benchmark, also known as SSB, on Azu
 to measure and compare the performance.
 
 ## What is Star Schema Benchmark(SSB)
-Star Schema Benchmark, aks SSB, is designed to measure performance of database products in support of data warehousing
+Star Schema Benchmark, aka SSB, is designed to measure performance of database products in support of data warehousing
 application. It is developed based on [TPC-H benchmark](https://www.tpc.org/tpch/) but with a curated schema version.
 Simply speaking, SSB benchmarking schema is easier for developer to verify the performance of major commercial
 databases with a concise schema and queries.
